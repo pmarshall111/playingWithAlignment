@@ -9,4 +9,4 @@ target_compile_options(demonstrateCompilerAlignment.tsk PRIVATE -ggdb)
 
 add_executable(speedTest.tsk speedTest.cpp)
 target_include_directories(speedTest.tsk PRIVATE .)
-# target_compile_options(speedTest.tsk PRIVATE -O2)
+target_compile_options(speedTest.tsk PRIVATE -O3)

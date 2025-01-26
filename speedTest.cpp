@@ -3,12 +3,12 @@
 #include <iostream>
 #include <memory>
 
-// The compiler will automatically align this to 4 bytes.
+// The compiler will automatically align this to 8 bytes.
 struct MyStruct {
-    int a;
+    long long a;
     char b[1];
-    int c;
 };
+const int SIZE_OF_MYSTRUCT_NO_ALIGN = 9;
 
 template<typename Fn>
 void runFuncPrintTime(Fn fn, const std::string& prefix) {
@@ -19,50 +19,63 @@ void runFuncPrintTime(Fn fn, const std::string& prefix) {
     std::cout << prefix << " execution time: " << ms << std::endl;
 }
 
-void populateCompilerArr(std::unique_ptr<MyStruct[]>& compilerArr, int size) {
+enum class WriteType {
+    LINEAR,
+    RANDOM
+};
+
+void writeAligned(std::unique_ptr<volatile MyStruct[]>& compilerArr, int size, WriteType writeType) {
     for (int i = 0; i<size; i++) {
-        compilerArr[i].a = i+1;
-        compilerArr[i].b[0] = char(i%(126-33) + 33); // Printable chars
-        compilerArr[i].c = i+2;
+        int idx = i;
+        if (writeType == WriteType::RANDOM) {
+            idx = rand() % size;
+        }
+        compilerArr[i].a = rand()-1;
+        compilerArr[i].b[0] = char(rand()%(126-33) + 33); // Printable chars
     }
 }
 
-void populateMyArr(std::unique_ptr<char[]>& myArr, int size) {
+void writeNonAligned(std::unique_ptr<volatile char[]>& nonAligned, int size, WriteType writeType) {
     for (int i = 0; i<size; i++) {
-        myArr[i*9] = i+1;
-        myArr[i*9+4] = char(i%(126-33) + 33); // Printable chars
-        myArr[i*9+5] = i+2;
-    }
-}
-
-void updateCompilerArr(std::unique_ptr<MyStruct[]>& compilerArr, int size) {
-    for (int i = 0; i<size; i++) {
-        compilerArr[i].c = i-1;
-    }
-}
-
-void updateMyArr(std::unique_ptr<char[]>& myArr, int size) {
-    for (int i = 0; i<size; i++) {
-        myArr[i*9+5] = i-1;
+        int idx = i;
+        if (writeType == WriteType::RANDOM) {
+            idx = rand() % size;
+        }
+        *reinterpret_cast<volatile long long*>(&nonAligned[i*SIZE_OF_MYSTRUCT_NO_ALIGN]) = rand()-1;
+        nonAligned[i*SIZE_OF_MYSTRUCT_NO_ALIGN+4] = char(rand()%(126-33) + 33); // Printable chars
     }
 }
 
 int main() {
-    int numStructs = 10000000;
+    int numStructs = 100000000;
 
     // Letting the compiler do it's thing
-    std::unique_ptr<MyStruct[]> compilerArray = std::make_unique<MyStruct[]>(numStructs);
+    std::unique_ptr<volatile MyStruct[]> compilerArray = std::make_unique<volatile MyStruct[]>(numStructs);
     // Rolling my own
-    std::unique_ptr<char[]> myArray = std::make_unique<char[]>(9 * numStructs);
+    std::unique_ptr<volatile char[]> nonAligned = std::make_unique<volatile char[]>(SIZE_OF_MYSTRUCT_NO_ALIGN * numStructs);
 
     std::cout << "Total memory allocated by compiler (mb): " << numStructs * sizeof(MyStruct) / 1000000 << std::endl;
-    std::cout << "Total memory allocated by me (mb): " << numStructs * 9 / 1000000 << std::endl;
+    std::cout << "Total memory allocated by me (mb): " << numStructs * SIZE_OF_MYSTRUCT_NO_ALIGN / 1000000 << std::endl;
 
-    // Fill structs with the same data
-    runFuncPrintTime([&](){populateCompilerArr(compilerArray, numStructs);}, "Populate compiler arr");
-    runFuncPrintTime([&](){populateMyArr(myArray, numStructs);}, "Populate my arr");
-
-    // Loop through structs and change the non-aligned member 'c'
-    runFuncPrintTime([&](){updateCompilerArr(compilerArray, numStructs);}, "Update compiler arr");
-    runFuncPrintTime([&](){updateMyArr(myArray, numStructs);}, "Update my arr");
+    // Run a few times for multiple results
+    runFuncPrintTime([&](){writeNonAligned(nonAligned, numStructs, WriteType::LINEAR);}, "Write non aligned arr linear access");
+    runFuncPrintTime([&](){writeAligned(compilerArray, numStructs, WriteType::LINEAR);}, "Write compiler arr linear access");
+    runFuncPrintTime([&](){writeNonAligned(nonAligned, numStructs, WriteType::RANDOM);}, "Write non aligned arr random access");
+    runFuncPrintTime([&](){writeAligned(compilerArray, numStructs, WriteType::RANDOM);}, "Write compiler arr random access");
+    runFuncPrintTime([&](){writeNonAligned(nonAligned, numStructs, WriteType::LINEAR);}, "Write non aligned arr linear access");
+    runFuncPrintTime([&](){writeAligned(compilerArray, numStructs, WriteType::LINEAR);}, "Write compiler arr linear access");
+    runFuncPrintTime([&](){writeNonAligned(nonAligned, numStructs, WriteType::RANDOM);}, "Write non aligned arr random access");
+    runFuncPrintTime([&](){writeAligned(compilerArray, numStructs, WriteType::RANDOM);}, "Write compiler arr random access");
+    runFuncPrintTime([&](){writeNonAligned(nonAligned, numStructs, WriteType::LINEAR);}, "Write non aligned arr linear access");
+    runFuncPrintTime([&](){writeAligned(compilerArray, numStructs, WriteType::LINEAR);}, "Write compiler arr linear access");
+    runFuncPrintTime([&](){writeNonAligned(nonAligned, numStructs, WriteType::RANDOM);}, "Write non aligned arr random access");
+    runFuncPrintTime([&](){writeAligned(compilerArray, numStructs, WriteType::RANDOM);}, "Write compiler arr random access");
+    runFuncPrintTime([&](){writeNonAligned(nonAligned, numStructs, WriteType::LINEAR);}, "Write non aligned arr linear access");
+    runFuncPrintTime([&](){writeAligned(compilerArray, numStructs, WriteType::LINEAR);}, "Write compiler arr linear access");
+    runFuncPrintTime([&](){writeNonAligned(nonAligned, numStructs, WriteType::RANDOM);}, "Write non aligned arr random access");
+    runFuncPrintTime([&](){writeAligned(compilerArray, numStructs, WriteType::RANDOM);}, "Write compiler arr random access");
+    runFuncPrintTime([&](){writeNonAligned(nonAligned, numStructs, WriteType::LINEAR);}, "Write non aligned arr linear access");
+    runFuncPrintTime([&](){writeAligned(compilerArray, numStructs, WriteType::LINEAR);}, "Write compiler arr linear access");
+    runFuncPrintTime([&](){writeNonAligned(nonAligned, numStructs, WriteType::RANDOM);}, "Write non aligned arr random access");
+    runFuncPrintTime([&](){writeAligned(compilerArray, numStructs, WriteType::RANDOM);}, "Write compiler arr random access");
 }
